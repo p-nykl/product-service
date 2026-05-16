@@ -1,5 +1,7 @@
 const express = require('express');
 const dotenv = require('dotenv');
+const productRoutes = require('./routes/products');
+const requestLogger = require ('./middleware/logger');
 
 dotenv.config();
 
@@ -7,6 +9,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(express.json());
+app.use(requestLogger);
 
 const checkApiKey = (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
@@ -17,56 +20,8 @@ const checkApiKey = (req, res, next) => {
     next();
 }
 
-app.post('/api/products', checkApiKey, (req, res) => {
-    const { name,  price, category } = req.body;
-
-    if (!name || !price) {
-        return res.status(400).json({
-            error: 'Bad Request',
-            message: 'Name and Price are required fields.'
-        });
-    }
-    if (typeof price !== 'number' || price <= 0) {
-        return res.status(400).json({
-            error: 'Bad Request',
-            message: 'Price must be a positive number.'
-        });
-    }
-    const newProduct = {
-        id: products.length + 1,
-        name,
-        price,
-        category: category || 'Uncategorized'
-    };
-    products.push(newProduct);
-    res.status(201).json(newProduct);
-})
-
-let products = [
-    { id: 1, name: 'Laptop', price: 999.99, category: 'Electronics'},
-    { id: 2, name: 'Coffee Maker', price: 49.99, category:'Home' }
-]
-
-app.get('/api/products', (req, res) => {
-    res.json(products);
-});
-
-app.get('/api/products/:id', (req,res) => {
-    const productId = parseInt(req.params.id);
-    const product = products.find(p => p.id === productId);
-
-    if (!product) {
-        return res.status(404).json({message: 'Product not found'});
-    }
-    res.json(product);
-});
-
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'UP', service: process.env.SERVICE_NAME
-    });
-});
-
-// app.post('/api/products', (req, res) => {
+app.use('/api/products', checkApiKey, productRoutes);
+// app.post('/api/products', checkApiKey, (req, res) => {
 //     const { name,  price, category } = req.body;
 
 //     if (!name || !price) {
@@ -89,8 +44,36 @@ app.get('/health', (req, res) => {
 //     };
 //     products.push(newProduct);
 //     res.status(201).json(newProduct);
+// })
+
+// let products = [
+//     { id: 1, name: 'Laptop', price: 999.99, category: 'Electronics'},
+//     { id: 2, name: 'Coffee Maker', price: 49.99, category:'Home' }
+// ]
+
+// app.get('/api/products', (req, res) => {
+//     res.json(products);
 // });
 
+// app.get('/api/products/:id', (req,res) => {
+//     const productId = parseInt(req.params.id);
+//     const product = products.find(p => p.id === productId);
+
+//     if (!product) {
+//         return res.status(404).json({message: 'Product not found'});
+//     }
+//     res.json(product);
+// });
+
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'UP', service: process.env.SERVICE_NAME
+    });
+});
+
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({message: 'Internal Server Error'});
+});
 app.listen(port, () => {
     console.log(`${process.env.SERVICE_NAME} running on http://localhost:${port}`);
 });
